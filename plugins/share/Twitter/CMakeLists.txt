@@ -20,7 +20,7 @@ PACKAGES
     WebKit2-4.0
     rest-0.7
     json-glib-1.0
-    libxml-2.0
+    gxml-0.14
 
 OPTIONS
     --target-glib=2.32

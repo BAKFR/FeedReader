@@ -27,7 +27,7 @@ public class FeedReader.OPMLparser : GLib.Object {
 
 	public bool parse()
 	{
-		Xml.Doc* doc = Xml.Parser.read_doc(m_opmlString, null, null, Xml.ParserOption.NOERROR + Xml.ParserOption.NOWARNING);
+		Xml.Doc* doc = Xml.Parser.read_doc(m_opmlString, null, null, grabberUtils.ParserOption);
 		if(doc == null)
 			return false;
 

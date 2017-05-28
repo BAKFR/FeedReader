@@ -26,7 +26,7 @@ PACKAGES
     json-glib-1.0
     libsoup-2.4
     gee-0.8
-    libxml-2.0
+    gxml-0.14
     sqlite3
     libsecret-1
 
@@ -63,7 +63,7 @@ PACKAGES
     libsoup-2.4
     WebKit2-4.0
     posix
-    libxml-2.0
+    gxml-0.14
 
 OPTIONS
     --target-glib=2.32

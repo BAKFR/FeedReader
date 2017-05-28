@@ -22,9 +22,7 @@ public class FeedReader.Grabber : GLib.Object {
 	private GrabberConfig m_config;
 	private Soup.Session m_session;
 	private bool m_firstPage;
-	private Html.Doc* m_doc;
-	private Xml.Node* m_root;
-	private Xml.Ns* m_ns;
+	private GXml.HtmlDocument m_doc;
 	private bool m_foundSomething;
 	private bool m_singlePage;
 
@@ -46,13 +44,6 @@ public class FeedReader.Grabber : GLib.Object {
 
 		if(m_articleURL.has_prefix("//"))
 			m_articleURL = "http:" + m_articleURL;
-	}
-
-	~Grabber()
-	{
-		delete m_doc;
-		delete m_root;
-		delete m_ns;
 	}
 
 	private bool checkConfigFile()
@@ -283,17 +274,8 @@ public class FeedReader.Grabber : GLib.Object {
 		Logger.debug("Grabber: parse html");
 
 		// parse html
-		var html_cntx = new Html.ParserCtxt();
-		html_cntx.use_options(Html.ParserOption.NOERROR + Html.ParserOption.NOWARNING);
-		var doc = html_cntx.read_doc(m_rawHtml, "");
-		if(doc == null)
-		{
-			Logger.debug("Grabber: parsing failed");
-			return false;
-		}
-
-		Logger.debug("Grabber: html parsed");
-
+		GXml.HtmlDocument doc = new GXml.HtmlDocument.from_string(m_rawHtml, 0);
+		Logger.debug(doc.libxml_to_string());
 
 		// get link to next page of article if there are more than one pages
 		if(m_config.getXPathNextPageURL() != null)
@@ -317,8 +299,7 @@ public class FeedReader.Grabber : GLib.Object {
 				m_singlePage = true;
 				m_articleURL = url;
 				download();
-				delete doc;
-				doc = html_cntx.read_doc(m_rawHtml, "");
+				doc = new GXml.HtmlDocument.from_string(m_rawHtml, grabberUtils.ParserOption);
 			}
 		}
 
@@ -336,10 +317,7 @@ public class FeedReader.Grabber : GLib.Object {
 		}
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		// get the author from the html (useful if feed doesn't provide one)
 		unowned Gee.ArrayList<string> author = m_config.getXPathAuthor();
@@ -355,10 +333,7 @@ public class FeedReader.Grabber : GLib.Object {
 		}
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		// get the date from the html (useful if feed doesn't provide one)
 		unowned Gee.ArrayList<string> date = m_config.getXPathDate();
@@ -374,10 +349,7 @@ public class FeedReader.Grabber : GLib.Object {
 		}
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		// strip junk
 		unowned Gee.ArrayList<string> strip = m_config.getXPathStrip();
@@ -392,10 +364,7 @@ public class FeedReader.Grabber : GLib.Object {
 		}
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		// strip any element whose @id or @class contains this substring
 		unowned Gee.ArrayList<string> _stripIDorClass = m_config.getXPathStripIDorClass();
@@ -409,10 +378,7 @@ public class FeedReader.Grabber : GLib.Object {
 		}
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		//strip any <img> element where @src attribute contains this substring
 		unowned Gee.ArrayList<string> stripImgSrc = m_config.getXPathStripImgSrc();
@@ -426,10 +392,7 @@ public class FeedReader.Grabber : GLib.Object {
 		}
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		grabberUtils.fixLazyImg(doc, "lazyload", "data-src");
 		grabberUtils.fixIframeSize(doc, "youtube.com");
@@ -440,10 +403,7 @@ public class FeedReader.Grabber : GLib.Object {
 		grabberUtils.addAttributes(doc, "a", "target", "_blank");
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		// complete relative source urls of images
 		Logger.debug("Grabber: complete urls");
@@ -462,10 +422,7 @@ public class FeedReader.Grabber : GLib.Object {
 				"//*[contains(concat(' ',normalize-space(@class),' '),' entry-unrelated ') or contains(concat(' ',normalize-space(@class),' '),' instapaper_ignore ')]");
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		// strip elements that contain style="display: none;"
 		Logger.debug("Grabber: strip invisible elements");
@@ -492,10 +449,7 @@ public class FeedReader.Grabber : GLib.Object {
 		grabberUtils.stripNode(doc, "//*[@type='text/css']");
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return false;
-		}
 
 		// get the content of the article
 		unowned Gee.ArrayList<string> bodyList = m_config.getXPathBody();
@@ -504,7 +458,7 @@ public class FeedReader.Grabber : GLib.Object {
 			Logger.debug("Grabber: get body");
 			foreach(string bodyXPath in bodyList)
 			{
-				if(grabberUtils.extractBody(doc, bodyXPath, m_root))
+				if(grabberUtils.extractBody(doc, bodyXPath, m_doc))
 					m_foundSomething = true;
 				else
 					Logger.error(bodyXPath);
@@ -524,8 +478,6 @@ public class FeedReader.Grabber : GLib.Object {
 		{
 			Logger.error("Grabber: config file has no rule for 'body'");
 		}
-
-		delete doc;
 
 		if(cancellable != null && cancellable.is_cancelled())
 			return false;
@@ -557,18 +509,14 @@ public class FeedReader.Grabber : GLib.Object {
 		if(cancellable != null && cancellable.is_cancelled())
 			return false;
 
-		m_doc->dump_memory_enc(out m_html);
-		m_html = grabberUtils.postProcessing(ref m_html);
+		m_html = m_doc.to_string();
+		m_html = grabberUtils.postProcessing(m_html);
 		return true;
 	}
 
 	private void prepArticle()
 	{
-		m_doc = new Html.Doc("1.0");
-		m_ns = new Xml.Ns(null, "", "article");
-		m_ns->type = Xml.ElementType.ELEMENT_NODE;
-		m_root = new Xml.Node(m_ns, "body");
-		m_doc->set_root_element(m_root);
+		m_doc = new GXml.HtmlDocument();
 	}
 
 	public string getArticle()

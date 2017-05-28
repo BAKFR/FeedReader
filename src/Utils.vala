@@ -518,9 +518,7 @@ public class FeedReader.Utils : GLib.Object {
 				return false;
 			}
 
-			var html_cntx = new Html.ParserCtxt();
-			html_cntx.use_options(Html.ParserOption.NOERROR + Html.ParserOption.NOWARNING);
-			Html.Doc* doc = html_cntx.read_doc(html, siteURL, null, Html.ParserOption.NOERROR + Html.ParserOption.NOWARNING);
+			GXml.HtmlDocument? doc = new GXml.HtmlDocument.from_string(html, grabberUtils.ParserOption);
 			if(doc == null)
 			{
 				Logger.debug("Utils.downloadFavIcon: parsing html failed");
@@ -549,8 +547,6 @@ public class FeedReader.Utils : GLib.Object {
 			{
 				Logger.debug("Utils.downloadFavIcon: xpath failed");
 			}
-
-			delete doc;
 		}
 
 		// try domainname/favicon.ico

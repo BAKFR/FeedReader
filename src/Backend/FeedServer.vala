@@ -403,9 +403,7 @@ public class FeedReader.FeedServer : GLib.Object {
 		if(!Settings.general().get_boolean("download-images"))
 			return;
 
-		var html_cntx = new Html.ParserCtxt();
-		html_cntx.use_options(Html.ParserOption.NOERROR + Html.ParserOption.NOWARNING);
-		Html.Doc* doc = html_cntx.read_doc(Article.getHTML(), "");
+		GXml.HtmlDocument? doc = new GXml.HtmlDocument.from_string(Article.getHTML(), grabberUtils.ParserOption);
 		if(doc == null)
 		{
 			Logger.debug("Grabber: parsing failed");
@@ -422,18 +420,11 @@ public class FeedReader.FeedServer : GLib.Object {
 		grabberUtils.addAttributes(doc, "a", "target", "_blank");
 
 		if(cancellable != null && cancellable.is_cancelled())
-		{
-			delete doc;
 			return;
-		}
 
 		grabberUtils.saveImages(session, doc, Article.getArticleID(), Article.getFeedID(), cancellable);
-
-		string html = "";
-		doc->dump_memory_enc(out html);
-		html = grabberUtils.postProcessing(ref html);
+		string html = grabberUtils.postProcessing(doc.to_string());
 		Article.setHTML(html);
-		delete doc;
 	}
 
 	private int ArticleSyncCount()
@@ -521,9 +512,7 @@ public class FeedReader.FeedServer : GLib.Object {
 		session.timeout = 5;
 		session.ssl_strict = false;
 
-		var html_cntx = new Html.ParserCtxt();
-		html_cntx.use_options(Html.ParserOption.NOERROR + Html.ParserOption.NOWARNING);
-		Html.Doc* doc = html_cntx.read_file(htmlFile);
+		GXml.HtmlDocument? doc = new GXml.HtmlDocument.from_string(htmlFile, grabberUtils.ParserOption);
 		if (doc == null)
 		{
 			Logger.debug("Grabber: parsing failed");
@@ -532,8 +521,7 @@ public class FeedReader.FeedServer : GLib.Object {
 		grabberUtils.repairURL("//img", "src", doc, url);
 		grabberUtils.saveImages(session, doc, "", "");
 
-		string html = "";
-		doc->dump_memory_enc(out html);
+		string html = doc.to_string();
 		html = html.replace("<h3/>", "<h3></h3>");
 
 		int pos1 = html.index_of("<iframe", 0);
@@ -561,8 +549,6 @@ public class FeedReader.FeedServer : GLib.Object {
 		{
 			Logger.error("FeedServer.grabImages: %s".printf(e.message));
 		}
-
-		delete doc;
 	}
 
 	public bool supportTags()

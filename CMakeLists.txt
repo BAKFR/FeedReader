@@ -52,7 +52,7 @@ set(MODULES
 	sqlite3
 	libsecret-1
 	libnotify
-	libxml-2.0
+	gxml-0.14
 	rest-0.7
 	webkit2gtk-4.0
 	gstreamer-1.0
@@ -108,7 +108,7 @@ PACKAGES
 	libsecret-1
 	sqlite3
 	libsoup-2.4
-	libxml-2.0
+	gxml-0.14
 
 OPTIONS
 	--target-glib=${GLIB_VERSION}
@@ -139,7 +139,7 @@ set(UI_PACKAGES
 	gstreamer-1.0
 	gstreamer-pbutils-1.0
 	libpeas-1.0
-	libxml-2.0
+	gxml-0.14
 	goa-1.0)
 
 vala_precompile(UI ${UI_NAME}
@@ -240,7 +240,7 @@ set(DAEMON_PACKAGES
 	json-glib-1.0
 	libnotify
 	libsecret-1
-	libxml-2.0
+	gxml-0.14
 	rest-0.7
 	libpeas-1.0)
 

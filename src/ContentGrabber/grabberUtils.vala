@@ -15,357 +15,347 @@
 
 public class FeedReader.grabberUtils : GLib.Object {
 
+	public static int ParserOption = Html.ParserOption.NOERROR + Html.ParserOption.NOWARNING;
+
 	public grabberUtils()
 	{
 
 	}
 
-	public static bool extractBody(Html.Doc* doc, string xpath, Xml.Node* destination)
+	public static bool extractBody(GXml.HtmlDocument doc, string xpath, GXml.HtmlDocument destination)
 	{
-		bool foundSomething = false;
-		var cntx = new Xml.XPath.Context(doc);
-		var res = cntx.eval_expression(xpath);
-
-		if(res == null)
+		try
 		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
+			GXml.XPathObject res = doc.evaluate(xpath);
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
 
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			Xml.Node* node = res->nodesetval->item(i);
-
-			// remove property "style" of all tags
-			node->has_prop("style")->remove();
-
-			node->unlink();
-			destination->add_child(node);
-
-			if(!foundSomething)
-				foundSomething = true;
-		}
-
-		delete res;
-		return foundSomething;
-	}
-
-	public static string? getURL(Html.Doc* doc, string xpath)
-	{
-		var cntx = new Xml.XPath.Context(doc);
-		var res = cntx.eval_expression(xpath);
-
-		if(res == null)
-		{
-			return null;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return null;
-		}
-
-		Xml.Node* node = res->nodesetval->item(0);
-		string URL = node->get_prop("href");
-
-		node->unlink();
-		node->free_list();
-		delete res;
-		return URL;
-	}
-
-	public static string? getValue(Html.Doc* doc, string xpath, bool remove = false)
-	{
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression(xpath);
-
-		if(res == null)
-		{
-			return null;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return null;
-		}
-
-		Xml.Node* node = res->nodesetval->item(0);
-		string result = cleanString(node->get_content());
-
-		if(remove)
-		{
-			node->unlink();
-			node->free_list();
-		}
-
-		delete res;
-		return result;
-	}
-
-	public static bool repairURL(string xpath, string attr, Html.Doc* doc, string articleURL)
-	{
-		Logger.debug("GrabberUtils: repairURL xpath:\"%s\" attr:\"%s\"".printf(xpath, attr));
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression(xpath);
-
-		if(res == null)
-		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
-
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			Xml.Node* node = res->nodesetval->item(i);
-			if(node->get_prop(attr) != null)
-				node->set_prop(attr, completeURL(node->get_prop(attr), articleURL));
-		}
-
-		delete res;
-		return true;
-	}
-
-	public static bool fixLazyImg(Html.Doc* doc, string className, string correctURL)
-	{
-		Logger.debug("grabberUtils: fixLazyImg");
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression("//img[contains(@class, '%s')]".printf(className));
-
-		if(res == null)
-		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
-
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			Xml.Node* node = res->nodesetval->item(i);
-			node->set_prop("src", node->get_prop(correctURL));
-		}
-
-		delete res;
-		return true;
-	}
-
-	public static bool fixIframeSize(Html.Doc* doc, string siteName)
-	{
-		Logger.debug("grabberUtils: fixIframeSize");
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression(@"//iframe[contains(@src, '$siteName')]");
-
-		if(res == null)
-		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
-
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			Xml.Node* node = res->nodesetval->item(i);
-			Xml.Node* videoWrapper = new Xml.Node(null, "div");
-			Xml.Node* parent = node->parent;
-
-			videoWrapper->set_prop("class", "videoWrapper");
-			node->set_prop("width", "100%");
-			node->unset_prop("height");
-
-			node->unlink();
-			videoWrapper->add_child(node);
-			parent->add_child(videoWrapper);
-		}
-
-		delete res;
-		return true;
-	}
-
-	public static void stripNode(Html.Doc* doc, string xpath)
-	{
-		string ancestor = xpath;
-		if(ancestor.has_prefix("//"))
-		{
-			ancestor = ancestor.substring(2);
-		}
-		string query = "%s[not(ancestor::%s)]".printf(xpath, ancestor);
-
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression(query);
-
-		if(res != null
-		&& res->type == Xml.XPath.ObjectType.NODESET
-		&& res->nodesetval != null)
-		{
-			for(int i = 0; i < res->nodesetval->length(); ++i)
+			for(int i = 0; i < res.nodeset.length; i++)
 			{
-				Xml.Node* node = res->nodesetval->item(i);
+				GXml.DomElement? node = res.nodeset.item(i);
+
+				if(node == null)
+					return false;
+
+				// remove property "style" of all tags
+				node.remove_attribute("style");
+				doc.remove_child(node);
+				destination.append_child(node);
+			}
+
+			return res.nodeset.length > 0;
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.extractBody: " + e.message);
+			return false;
+		}
+	}
+
+	public static string? getURL(GXml.HtmlDocument doc, string xpath)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(xpath);
+			if(res.object_type != GXml.XPathObjectType.NODESET
+			|| res.nodeset.length == 0)
+			{
+				Logger.error(@"grabberUtils.getURL failed - xpath: $xpath");
+				return null;
+			}
+
+			GXml.DomElement? node = res.nodeset.item(0);
+			return node.get_attribute("href");
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.getURL: " + e.message);
+			Logger.error(@"grabberUtils.getURL: xpath $xpath");
+			return null;
+		}
+	}
+
+	public static string? getValue(GXml.HtmlDocument doc, string xpath, bool remove = false)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(xpath);
+			if(res.object_type != GXml.XPathObjectType.NODESET
+			|| res.nodeset.length == 0)
+			{
+				Logger.error(@"grabberUtils.getValue failed - xpath: $xpath");
+				return null;
+			}
+
+			GXml.DomElement node = res.nodeset.item(0);
+			string val = cleanString(node.text_content);
+
+			if(remove)
+				doc.remove_child(node);
+
+			return val;
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.getValue: " + e.message);
+			Logger.error(@"grabberUtils.getValue: xpath $xpath");
+			return null;
+		}
+	}
+
+	public static bool repairURL(string xpath, string attr, GXml.HtmlDocument doc, string articleURL)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(xpath);
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+				if(node != null && node.has_attribute(attr))
+					node.set_attribute(attr, completeURL(node.get_attribute(attr), articleURL));
+			}
+
+			return true;
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.repairURL: " + e.message);
+			return false;
+		}
+	}
+
+	public static bool fixLazyImg(GXml.HtmlDocument doc, string className, string correctURL)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(@"//img[contains(@class, '$className')]");
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+				if(node != null)
+					node.set_attribute("src", node.get_attribute(correctURL));
+			}
+
+			return true;
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.fixLazyImg: " + e.message);
+			return false;
+		}
+	}
+
+	public static bool fixIframeSize(GXml.HtmlDocument doc, string siteName)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(@"//iframe[contains(@src, '$siteName')]");
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+				GXml.DomElement? parent = node.parent_element;
+				GXml.DomElement? videoWrapper = doc.create_element("div") as GXml.DomElement;
+
+				videoWrapper.set_attribute("class", "videoWrapper");
+				node.set_attribute("width", "100%");
+				node.remove_attribute("height");
+
+				doc.remove_child(node);
+				videoWrapper.append_child(node);
+				parent.append_child(videoWrapper);
+			}
+
+			return true;
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.fixIframeSize: " + e.message);
+			return false;
+		}
+	}
+
+	public static void stripNode(GXml.HtmlDocument doc, string xpath)
+	{
+		try
+		{
+			string ancestor = xpath;
+			if(ancestor.has_prefix("//"))
+			{
+				ancestor = ancestor.substring(2);
+			}
+			string query = @"$xpath[not(ancestor::$ancestor)]";
+
+			GXml.XPathObject res = doc.evaluate(query);
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+
+				if(node != null)
+					doc.remove_child(node);
+			}
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.stripNode: " + e.message);
+		}
+	}
+
+	public static void onlyRemoveNode(GXml.HtmlDocument doc, string xpath)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(xpath);
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
 				if(node == null)
 					continue;
 
-				node->unlink();
-				node->free_list();
-			}
-		}
-
-		delete res;
-	}
-
-	public static void onlyRemoveNode(Html.Doc* doc, string xpath)
-	{
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression(xpath);
-
-		if(res != null
-		&& res->type == Xml.XPath.ObjectType.NODESET
-		&& res->nodesetval != null)
-		{
-			for(int i = 0; i < res->nodesetval->length(); i++)
-			{
-				Xml.Node* node = res->nodesetval->item(i);
-				if(node == null)
-					continue;
-
-				Xml.Node* parent = node->parent;
-				Xml.Node* children = node->children;
-
-				children->unlink();
-				parent->add_child(children);
-
-				node->unlink();
-				node->free_list();
-			}
-		}
-
-		delete res;
-	}
-
-	public static bool setAttributes(Html.Doc* doc, string attribute, string newValue)
-	{
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression("//*[@%s]".printf(attribute));
-
-		if(res == null)
-		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
-
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			Xml.Node* node = res->nodesetval->item(i);
-			node->set_prop(attribute, newValue);
-		}
-
-		delete res;
-		return true;
-	}
-
-	public static bool removeAttributes(Html.Doc* doc, string? tag, string attribute)
-	{
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res;
-		if(tag == null)
-			res = cntx.eval_expression("//*[@%s]".printf(attribute));
-		else
-			res = cntx.eval_expression("//%s[@%s]".printf(tag, attribute));
-
-		if(res == null)
-		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
-
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			Xml.Node* node = res->nodesetval->item(i);
-			node->unset_prop(attribute);
-		}
-
-		delete res;
-		return true;
-	}
-
-	public static bool addAttributes(Html.Doc* doc, string? tag, string attribute, string val)
-	{
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res;
-		if(tag == null)
-		{
-			Logger.debug(@"addAttributes: //* $attribute $val");
-			res = cntx.eval_expression(@"//*");
-		}
-		else
-		{
-			Logger.debug(@"addAttributes: //$tag  $attribute $val");
-			res = cntx.eval_expression(@"//$tag");
-		}
-
-		if(res == null)
-		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
-
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			Xml.Node* node = res->nodesetval->item(i);
-			node->set_prop(attribute, val);
-		}
-
-		delete res;
-		return true;
-	}
-
-	public static void stripIDorClass(Html.Doc* doc, string IDorClass)
-	{
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		string xpath = "//*[contains(@class, '%s') or contains(@id, '%s')]".printf(IDorClass, IDorClass);
-		Xml.XPath.Object* res = cntx.eval_expression(xpath);
-
-		if(res != null
-		&& res->type == Xml.XPath.ObjectType.NODESET
-		&& res->nodesetval != null)
-		{
-			for(int i = 0; i < res->nodesetval->length(); i++)
-			{
-				Xml.Node* node = res->nodesetval->item(i);
-				if(node->get_prop("class") != null
-				|| node->get_prop("id") != null
-				|| node->get_prop("src") != null)
+				GXml.DomNode? parent = node.parent_node;
+				GXml.DomNodeList children = node.child_nodes;
+				foreach(var n in children)
 				{
-					node->unlink();
-					node->free_list();
+					doc.remove_child(n);
+					parent.append_child(n);
+				}
+
+				doc.remove_child(node);
+			}
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.fixLazyImg: " + e.message);
+		}
+	}
+
+	public static bool setAttributes(GXml.HtmlDocument doc, string attribute, string newValue)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(@"//*[@$attribute]");
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+
+				if(node != null)
+				{
+					node.set_attribute(attribute, newValue);
+					return true;
 				}
 			}
 		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.setAttributes: " + e.message);
+		}
 
-		delete res;
+		return false;
+	}
+
+	public static bool removeAttributes(GXml.HtmlDocument doc, string? tag, string attribute)
+	{
+		try
+		{
+			string xpath = @"//*[@$attribute]";
+			if(tag != null)
+				xpath = @"//$tag[@$attribute]";
+
+			GXml.XPathObject res = doc.evaluate(xpath);
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+
+				if(node != null)
+				{
+					node.remove_attribute(attribute);
+					return true;
+				}
+			}
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.removeAttributes: " + e.message);
+		}
+
+		return false;
+	}
+
+	public static bool addAttributes(GXml.HtmlDocument doc, string? tag, string attribute, string val)
+	{
+		try
+		{
+			string xpath = "//*";
+			if(tag != null)
+				xpath = @"//$tag";
+
+			GXml.XPathObject res = doc.evaluate(xpath);
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+
+				if(node != null)
+				{
+					node.set_attribute(attribute, val);
+					return true;
+				}
+			}
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.removeAttributes: " + e.message);
+		}
+
+		return false;
+	}
+
+	public static void stripIDorClass(GXml.HtmlDocument doc, string IDorClass)
+	{
+		try
+		{
+			GXml.XPathObject res = doc.evaluate(@"//*[contains(@class, '$IDorClass') or contains(@id, '$IDorClass')]");
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return;
+
+			for(int i = 0; i < res.nodeset.length; i++)
+			{
+				GXml.DomElement? node = res.nodeset.item(i);
+				if(node == null)
+					continue;
+
+				if(node.has_attribute("class")
+				|| node.has_attribute("id")
+				|| node.has_attribute("src"))
+					doc.remove_child(node);
+			}
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.stripIDorClass: " + e.message);
+		}
 	}
 
 	public static string cleanString(string? text)
@@ -469,79 +459,80 @@ public class FeedReader.grabberUtils : GLib.Object {
 	}
 
 
-	public static bool saveImages(Soup.Session session, Html.Doc* doc, string articleID, string feedID, GLib.Cancellable? cancellable = null)
+	public static bool saveImages(Soup.Session session, GXml.HtmlDocument doc, string articleID, string feedID, GLib.Cancellable? cancellable = null)
 	{
-		Logger.debug("GrabberUtils: save Images: %s, %s".printf(articleID, feedID));
-		Xml.XPath.Context cntx = new Xml.XPath.Context(doc);
-		Xml.XPath.Object* res = cntx.eval_expression("//img");
-
-		if(res == null)
+		try
 		{
-			return false;
-		}
-		else if(res->type != Xml.XPath.ObjectType.NODESET || res->nodesetval == null)
-		{
-			delete res;
-			return false;
-		}
+			Logger.debug(@"GrabberUtils: save Images: $articleID, $feedID");
+			GXml.XPathObject res = doc.evaluate("//img");
+			if(res.object_type != GXml.XPathObjectType.NODESET)
+				return false;
 
-		for(int i = 0; i < res->nodesetval->length(); i++)
-		{
-			if(cancellable != null && cancellable.is_cancelled())
-				break;
-
-			Xml.Node* node = res->nodesetval->item(i);
-			if(node->get_prop("src") != null)
+			for(int i = 0; i < res.nodeset.length; i++)
 			{
-				if(
-					((node->get_prop("width") != null && int.parse(node->get_prop("width")) > 1)
-					|| (node->get_prop("width") == null))
-				&&
-					((node->get_prop("height") != null && int.parse(node->get_prop("height")) > 1)
-					|| (node->get_prop("height") == null))
-				)
+				if(cancellable != null && cancellable.is_cancelled())
+					break;
+
+				GXml.DomElement? node = res.nodeset.item(i);
+				if(node == null)
+					continue;
+
+				if(node.has_attribute("src"))
 				{
-					string? original = downloadImage(session, node->get_prop("src"), articleID, feedID, i+1);
-
-					if(original == null)
-						continue;
-
-					string? parentURL = checkParent(session, node);
-					if(parentURL != null)
+					if(
+						((node.has_attribute("width") && int.parse(node.get_attribute("width")) > 1)
+						|| !node.has_attribute("width"))
+					&&
+						((node.has_attribute("height") && int.parse(node.get_attribute("height")) > 1)
+						|| !node.has_attribute("height"))
+					)
 					{
-						string parent = downloadImage(session, parentURL, articleID, feedID, i+1, true);
+						string? original = downloadImage(session, node.get_attribute("src"), articleID, feedID, i+1);
 
-						if(compareImageSize(parent, original) > 0)
+						if(original == null)
+							continue;
+
+						string? parentURL = checkParent(session, node);
+						if(parentURL != null)
 						{
-							// parent is bigger than orignal image
-							node->set_prop("src", original);
-							node->set_prop("FR_parent", parent);
+							string parent = downloadImage(session, parentURL, articleID, feedID, i+1, true);
+
+							if(compareImageSize(parent, original) > 0)
+							{
+								// parent is bigger than orignal image
+								node.set_attribute("src", original);
+								node.set_attribute("FR_parent", parent);
+							}
+							else
+							{
+								// parent is no improvement over orignal image
+								// just delete parent again and only set orignal
+								GLib.FileUtils.remove(parent);
+								node.set_attribute("src", original);
+							}
 						}
 						else
 						{
-							// parent is no improvement over orignal image
-							// just delete parent again and only set orignal
-							GLib.FileUtils.remove(parent);
-							node->set_prop("src", original);
+							string? resized = resizeImg(original);
+							if(resized != null)
+							{
+								node.set_attribute("src", resized);
+								node.set_attribute("FR_huge", original);
+							}
+							else
+								node.set_attribute("src", original);
 						}
-					}
-					else
-					{
-						string? resized = resizeImg(original);
-						if(resized != null)
-						{
-							node->set_prop("src", resized);
-							node->set_prop("FR_huge", original);
-						}
-						else
-							node->set_prop("src", original);
 					}
 				}
 			}
+			return true;
+		}
+		catch(Error e)
+		{
+			Logger.error("grabberUtils.saveImages: " + e.message);
 		}
 
-		delete res;
-		return true;
+		return false;
 	}
 
 
@@ -696,18 +687,18 @@ public class FeedReader.grabberUtils : GLib.Object {
 
 	// check if the parent node is a link that points to a picture
 	// (most likely a bigger version of said picture)
-	private static string? checkParent(Soup.Session session, Xml.Node* node)
+	private static string? checkParent(Soup.Session session, GXml.DomElement node)
 	{
 		Logger.debug("Grabber: checkParent");
-		string smallImgURL = node->get_prop("src");
+		string smallImgURL = node.get_attribute("src");
 		int64 origSize = 0;
 		int64 size = 0;
-		Xml.Node* parent = node->parent;
-		string name = parent->name;
+		GXml.DomElement parent = node.parent_element;
+		string name = parent.tag_name;
 		Logger.debug(@"Grabber: parent $name");
 		if(name == "a")
 		{
-			string url = parent->get_prop("href");
+			string url = parent.get_attribute("href");
 
 			if(url != "" && url != null)
 			{
@@ -748,28 +739,28 @@ public class FeedReader.grabberUtils : GLib.Object {
 		return null;
 	}
 
-	public static string postProcessing(ref string html)
+	public static string postProcessing(string html)
 	{
 		Logger.debug("GrabberUtils: postProcessing");
-		html = html.replace("<h3/>", "<h3></h3>");
+		string result = html.replace("<h3/>", "<h3></h3>");
 
-		int pos1 = html.index_of("<iframe", 0);
+		int pos1 = result.index_of("<iframe", 0);
 		int pos2 = -1;
 		while(pos1 != -1)
 		{
-			pos2 = html.index_of("/>", pos1);
-			string broken_iframe = html.substring(pos1, pos2+2-pos1);
+			pos2 = result.index_of("/>", pos1);
+			string broken_iframe = result.substring(pos1, pos2+2-pos1);
 			Logger.debug("GrabberUtils: broken = %s".printf(broken_iframe));
 			string fixed_iframe = broken_iframe.substring(0, broken_iframe.length-2) + "></iframe>";
 			Logger.debug("GrabberUtils: fixed = %s".printf(fixed_iframe));
-			html = html.replace(broken_iframe, fixed_iframe);
-			int pos3 = html.index_of("<iframe", pos1+7);
-			if(pos3 == pos1 || pos3 > html.length)
+			result = result.replace(broken_iframe, fixed_iframe);
+			int pos3 = result.index_of("<iframe", pos1+7);
+			if(pos3 == pos1 || pos3 > result.length)
 				break;
 			else
 				pos1 = pos3;
 		}
 		Logger.debug("GrabberUtils: postProcessing done");
-		return html;
+		return result;
 	}
 }
