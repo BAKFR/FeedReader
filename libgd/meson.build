@@ -1,0 +1,10 @@
+static_library(
+  'gd',
+  [
+    'gd-notification.c',
+    'gd-notification.h',
+    'gd-types-catalog.c',
+    'gd-types-catalog.h',
+    'gd.h'
+  ]
+)

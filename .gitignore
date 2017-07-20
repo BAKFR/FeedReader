@@ -1,4 +1,5 @@
 build/
+builddir/
 feedreader.service
 feedreader.desktop
 feedreader-autostart.desktop
@@ -9,3 +10,4 @@ data/org.gnome.FeedReader.desktop
 data/org.gnome.FeedReader.Daemon.service
 data/org.gnome.FeedReader.appdata.xml
 *.po~
+.vscode/
