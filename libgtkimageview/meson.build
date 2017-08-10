@@ -3,5 +3,8 @@ static_library(
   [
     'gtkimageview.c',
     'gtkimageview.h'
+  ],
+  dependencies: [
+    gtk_dep
   ]
 )

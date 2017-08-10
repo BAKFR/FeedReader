@@ -43,8 +43,8 @@ SOURCES = [
   'Widgets/ArticleList/ArticleListScroll.vala',
   'Widgets/AddPopover.vala',
   'Widgets/ArticleRow.vala',
-  'Widgets/ArticleView.vala'
-  'Widgets/ArticleViewHeader.vala'
+  'Widgets/ArticleView.vala',
+  'Widgets/ArticleViewHeader.vala',
   'Widgets/ArticleViewLoadProgress.vala',
   'Widgets/BackendInfoPopover.vala',
   'Widgets/CategorieRow.vala',
@@ -85,3 +85,18 @@ SOURCES = [
   'Widgets/UpdateButton.vala',
   'Widgets/WebLoginPage.vala'
 ]
+
+cc = meson.get_compiler('c')
+executable(
+  'feedreader',
+  SOURCES,
+  install: true,
+  install_dir: 'bin'
+)
+
+executable(
+  'feedreader-daemon',
+  './Daemon.vala',
+  install: true,
+  install_dir: 'bin'
+)

@@ -1,11 +1,13 @@
-project('FeedReader', 'c',
+project('FeedReader', ['vala', 'c'],
   version: '2.0.2',
   meson_verison: '>= 0.41.0',
-  license: 'GPL-3.0'
+  license: 'GPL-3.0',
+  default_options: ['prefix=/usr']
 )
 
 # Dependencies
-dependency('gtk+-3.0', version: '>=3.22')
+gtk_dep  = dependency('gtk+-3.0', version: '>=3.22')
+glib_dep = dependency('glib-2.0')
 dependency('json-glib-1.0')
 dependency('libsoup-2.4')
 dependency('sqlite3')
@@ -32,10 +34,12 @@ conf.set('PREFIX', get_option('prefix'))
 conf.set('VERSION', meson.project_version())
 conf.set('PKGDATADIR', DATA_DIR)
 
-subdir('schemas')
-subdir('data')
+#subdir('schemas')
+#subdir('data')
 #subdir('libgd')
 #subdir('libgtkimageview')
-subdir('libVilistextum')
-subdir('po')
-subdir('src')
+#subdir('libIvy')
+#subdir('libVilistextum')
+#subdir('po')
+subdir('plugins')
+#subdir('src')
