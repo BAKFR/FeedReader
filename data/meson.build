@@ -1,10 +1,7 @@
 message('TODO: Compiling resources')
-gnome.compile_resources(
-  meson.project_name(),
-  'org.gnome.FeedReader.gresource.xml',
-  gresource_bundle: true,
-  install_dir: DATA_DIR,
-  install: true
+UI_RESOURCES = gnome.compile_resources(
+  'FeedReader',
+  'org.gnome.FeedReader.gresource.xml'
 )
 
 message('TODO: Making a .desktop file')

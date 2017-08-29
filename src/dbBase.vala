@@ -398,7 +398,7 @@ public class FeedReader.dbBase : GLib.Object {
 
 	public string getFeedName(string feedID)
 	{
-		string result = _("unknown Feed");
+		string result = "";
 
 		if(feedID == "")
 			return result;
@@ -497,8 +497,6 @@ public class FeedReader.dbBase : GLib.Object {
 			result = stmt.column_text(0);
 		}
 
-		if(result == "")
-			result = _("Uncategorized");
 
 		return result;
 	}

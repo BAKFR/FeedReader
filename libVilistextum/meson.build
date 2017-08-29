@@ -1,4 +1,4 @@
-static_library(
+lib_vilistextum = static_library(
   'vilistextum',
   [
     'charset.h',

@@ -1,4 +1,4 @@
-libivy = library(
+lib_ivy = library(
   'ivy',
   [
     'Extractor.vala',
