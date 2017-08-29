@@ -1,4 +1,4 @@
-static_library(
+lib_gd = static_library(
   'gd',
   [
     'gd-notification.c',
@@ -8,7 +8,7 @@ static_library(
     'gd.h'
   ],
   dependencies: [
-    dependency('gtk+-3.0', version: '>=3.22'),
-    dependency('glib-2.0')
+    glib,
+    gtk
   ]
 )

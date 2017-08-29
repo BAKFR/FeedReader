@@ -1,5 +1,3 @@
-
-
 namespace Gtk {
   [CCode (cheader_filename = "gtkimageview.h")]
   public class ImageView : Gtk.Widget {

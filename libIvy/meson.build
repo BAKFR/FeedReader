@@ -1,4 +1,4 @@
-lib_ivy = library(
+lib_ivy = static_library(
   'ivy',
   [
     'Extractor.vala',
@@ -7,9 +7,9 @@ lib_ivy = library(
     'Stacktrace.vala'
   ],
   dependencies: [
-    dependency('gee-0.8'),
-    meson.get_compiler('vala').find_library('posix'),
-    meson.get_compiler('vala').find_library('linux')
+    gee,
+    linux,
+    posix,
   ],
   vala_vapi: 'ivy.vapi'
 )
