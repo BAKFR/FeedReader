@@ -8,7 +8,7 @@ static_library(
     'gd.h'
   ],
   dependencies: [
-    gtk_dep,
-    glib_dep
+    dependency('gtk+-3.0', version: '>=3.22'),
+    dependency('glib-2.0')
   ]
 )

@@ -5,5 +5,5 @@ install_data([
     'org.gnome.feedreader.share.gschema.xml',
     'org.gnome.feedreader.tweaks.gschema.xml'
   ],
-  install_dir: 'share/glib-2.0/schemas'
+  install_dir: join_paths(get_option('datadir'), 'share/glib-2.0/schemas')
 )

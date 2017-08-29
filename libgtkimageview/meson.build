@@ -5,6 +5,6 @@ static_library(
     'gtkimageview.h'
   ],
   dependencies: [
-    gtk_dep
+    dependency('gtk+-3.0', version: '>=3.22')
   ]
 )
